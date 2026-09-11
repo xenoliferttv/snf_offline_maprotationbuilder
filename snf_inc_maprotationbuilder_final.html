@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNF Inc. | Advanced Rotation Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        .tree-line { border-left: 1px solid #334155; margin-left: 0.75rem; padding-left: 0.75rem; }
+        
+        .selected-row { background-color: #1e3a8a !important; border-color: #3b82f6 !important; color: #ffffff !important; }
+        .hover-row:hover:not(.selected-row) { background-color: #1e293b; }
+        
+        .drag-over-top { border-top: 2px solid #3b82f6 !important; }
+        .drag-over-bottom { border-bottom: 2px solid #3b82f6 !important; }
+        .row-transition { transition: background-color 0.1s ease, border-color 0.1s ease; }
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+        
+        select option[title] { padding: 4px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-4 relative">
+
+    <header class="w-full flex justify-between items-end mb-4 pb-4 border-b border-slate-700 shrink-0">
+        <div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 tracking-wide">
+                SNF Inc. Visual Rotation Builder
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">Advanced Offline Matrix Generation Tool</p>
+        </div>
+        <div class="flex items-center gap-3">
+            
+            <div class="flex items-center gap-1 bg-slate-800 p-1.5 rounded-lg border border-slate-600">
+                <label class="text-xs font-semibold text-slate-300 pl-2 uppercase tracking-wide cursor-help" title="Hover over options in the dropdown to see exactly what they do!">Presets:</label>
+                <select id="cmbPreset" onchange="handlePresetSelection(this.value)" class="bg-slate-900 border-none text-emerald-400 font-semibold text-sm rounded focus:ring-0 cursor-pointer p-1.5 outline-none w-52 truncate">
+                    <option value="" disabled selected>Select a playlist...</option>
+                    
+                    <optgroup label="Default Tactical Playlists">
+                        <option value="core72" title="The standard complete Wardogs experience. All 72 variations of maps, zones, and weather conditions.">⭐ Full 72-Map Core</option>
+                        <option value="daylight" title="Clear visibility only. Perfect for pilots and long-range sniper engagements.">☀️ Daylight Moshpit (Clear Only)</option>
+                        <option value="nightFog" title="Pitch black, heavy fog, and Hardcore mode forced on. Pure chaotic combat.">💀 Hardcore Nights (Fog/Gray + HC)</option>
+                        <option value="infantry" title="Small capture zones only (Houses, Church, Factory) with Infantry-Only mode forced.">🪖 Infantry CQB (Small Zones + Inf)</option>
+                        <option value="pilots" title="Wide open capture zones (Farmland, River) on Clear days to maximize CAS effectiveness.">🚁 Pilot's Playground (Open + Clear)</option>
+                        <option value="clear" title="Wipes the active rotation board completely clean.">🗑️ Clear All Maps</option>
+                    </optgroup>
+                    
+                    <optgroup id="customPresetGroup" label="Your Custom Saved Presets">
+                        <!-- Populated via JS LocalStorage -->
+                    </optgroup>
+                </select>
+                <button onclick="openSaveModal()" class="bg-slate-700 hover:bg-blue-600 text-slate-200 hover:text-white p-1.5 rounded transition shadow-sm ml-1" title="Save Current List as Preset">
+                    💾
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg border border-slate-600">
+                <label class="text-xs font-semibold text-slate-300 pl-2 uppercase tracking-wide">Mode:</label>
+                <select id="cmbMode" class="bg-slate-900 border-none text-blue-400 font-semibold text-sm rounded focus:ring-0 cursor-pointer p-1.5 outline-none">
+                    <option value="Ordered">Ordered</option>
+                    <option value="Random">Random</option>
+                </select>
+            </div>
+            
+            <button onclick="exportToClipboard()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-5 rounded-lg shadow-lg transition-all flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>
+                Copy Config
+            </button>
+
+            <!-- External Links: Discord, Ko-fi & Guide -->
+            <div class="flex items-center gap-1.5 pl-1 border-l border-slate-700">
+                <a href="https://discord.gg/smD3NEDB3T" target="_blank" rel="noopener noreferrer" class="bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5 group" title="Join our Discord Community">
+                    <svg class="w-4 h-4 fill-current group-hover:scale-110 transition-transform" viewBox="0 0 127.14 96.36"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.15c2.65-27.29-4.51-51.31-18.9-72.18ZM42.45,65.69C36.18,65.69,31,60,31,53s5.18-12.72,11.45-12.72S53.9,46,53.88,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.18-12.72,11.44-12.72S96.15,46,96.13,53,91,65.69,84.69,65.69Z"/></svg>
+                    <span class="text-sm font-bold tracking-wide">Discord</span>
+                </a>
+
+                <a href="https://ko-fi.com/snfinc" target="_blank" rel="noopener noreferrer" class="bg-slate-800 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-2.5 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5 group" title="Support SNF Inc. on Ko-fi">
+                    <span class="text-base group-hover:scale-110 transition-transform">☕</span>
+                    <span class="text-sm font-bold tracking-wide">Ko-fi</span>
+                </a>
+
+                <button onclick="openHelpModal()" class="bg-slate-800 hover:bg-blue-600 border border-slate-600 hover:border-blue-500 text-slate-300 hover:text-white p-2 rounded-lg transition shadow-sm" title="How to use this tool">
+                    ❓
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex gap-4 h-full overflow-hidden">
+        
+        <!-- Left Panel: Map Library -->
+        <div class="w-80 flex flex-col bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl shrink-0 select-none">
+            <div class="bg-slate-900 p-3 border-b border-slate-700 shrink-0">
+                <span class="text-sm text-slate-400 font-semibold uppercase tracking-wider">Map Library</span>
+                <p class="text-xs text-slate-500 mt-1">Drag zones, times, or entire regions.</p>
+            </div>
+            <div class="flex-grow overflow-auto p-3 bg-slate-800/50" id="treeContainer">
+                <!-- Tree generated by JS -->
+            </div>
+        </div>
+
+        <!-- Right Panel: Active Rotation -->
+        <div class="flex-grow flex flex-col bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl relative">
+            
+            <div class="bg-slate-900 p-3 flex justify-between items-center border-b border-slate-700 shrink-0">
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-slate-400 font-semibold uppercase tracking-wider">
+                        Active Rotation (<span id="countDisplay" class="text-blue-400">0</span>)
+                    </span>
+                    <div class="h-4 w-px bg-slate-700"></div>
+                    <span class="text-xs text-slate-500">Drag mouse to multi-select. Drag '⋮⋮' to reorder.</span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" id="chkInfantry" class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-0">
+                        <span class="text-slate-300 text-sm group-hover:text-white">🪖 Infantry</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" id="chkHardcore" class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-0">
+                        <span class="text-slate-300 text-sm group-hover:text-white">💀 Hardcore</span>
+                    </label>
+                    <button onclick="applyModifiers()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold transition ml-2 shadow-lg">
+                        Apply to Selected
+                    </button>
+                    <button onclick="deleteSelected()" class="bg-red-900/60 hover:bg-red-700/80 text-red-200 px-3 py-1.5 rounded text-xs font-bold transition ml-2 shadow-lg">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+
+            <!-- List Headers -->
+            <div class="grid grid-cols-12 gap-2 p-3 bg-slate-800 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider sticky top-0 z-10 select-none">
+                <div class="col-span-3 cursor-pointer hover:text-blue-400 transition" onclick="sortList('regionRaw')">Region & Map ↕</div>
+                <div class="col-span-3 cursor-pointer hover:text-blue-400 transition" onclick="sortList('lightRaw')">Time / Weather ↕</div>
+                <div class="col-span-4 cursor-pointer hover:text-blue-400 transition" onclick="sortList('zoneRaw')">Capture Zone ↕</div>
+                <div class="col-span-2 text-right cursor-pointer hover:text-blue-400 transition" onclick="sortList('modifierKey')">Modifiers ↕</div>
+            </div>
+
+            <!-- Droppable Active List Container -->
+            <div id="activeList" class="flex-grow overflow-auto p-2 space-y-1 relative" 
+                 ondragover="allowDrop(event)" ondrop="handleDrop(event)">
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-50">
+                    <span class="text-4xl mb-2">📥</span>
+                    <p class="text-slate-400 font-medium">Drag maps, weather, or regions here</p>
+                </div>
+            </div>
+            
+            <div id="exportToast" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white px-6 py-2 rounded-full shadow-2xl font-bold opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+                Code Copied to Clipboard!
+            </div>
+        </div>
+    </main>
+
+    <div id="presetModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden items-center justify-center z-50 opacity-0 transition-opacity duration-200">
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-600 w-[450px] shadow-2xl transform scale-95 transition-transform duration-200" id="presetModalContent">
+            <h2 class="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">💾 Save Custom Preset</h2>
+            <p class="text-sm text-slate-400 mb-6">This will save your current active map rotation locally to your browser so you can load it again later.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Preset Name</label>
+                    <input type="text" id="txtPresetName" placeholder="e.g., Launch Day Setup" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:border-blue-500 focus:outline-none placeholder-slate-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Description (Tooltip)</label>
+                    <input type="text" id="txtPresetDesc" placeholder="e.g., 20 maps, ordered for seeding..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:border-blue-500 focus:outline-none placeholder-slate-600">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button onclick="closeSaveModal()" class="px-4 py-2 rounded-lg font-semibold text-slate-300 hover:bg-slate-700 transition">Cancel</button>
+                <button onclick="saveCustomPreset()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-white shadow-lg transition">Save Preset</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="helpModal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden items-center justify-center z-50 opacity-0 transition-opacity duration-200 p-4">
+        <div class="bg-slate-800 rounded-xl border border-slate-600 w-full max-w-3xl max-h-[90vh] shadow-2xl transform scale-95 transition-transform duration-200 flex flex-col" id="helpModalContent">
+            
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center shrink-0">
+                <h2 class="text-2xl font-bold text-slate-100 flex items-center gap-2">📘 Wardogs Server Rotation Guide</h2>
+                <button onclick="closeHelpModal()" class="text-slate-400 hover:text-white transition text-2xl font-bold">&times;</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-grow space-y-6 text-slate-300 text-sm">
+                
+                <section>
+                    <h3 class="text-lg font-bold text-blue-400 mb-2">1. Where is my Server Config?</h3>
+                    <p class="mb-2">To apply your map rotations, you need to edit your server configuration file located on your BisectHosting Starbase panel. You can access this via the web file manager or an SFTP client.</p>
+                    <div class="bg-slate-900 p-3 rounded border border-slate-700 font-mono text-emerald-400 text-xs shadow-inner">
+                        Default Path: /home/container/Configs/ServerSettings.ini
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-bold text-blue-400 mb-2">2. How to Build Your Rotation</h3>
+                    <ul class="list-disc pl-5 space-y-3">
+                        <li><strong class="text-slate-200">Drag & Drop:</strong> Grab whole regions, specific weather, or individual zones from the left library and drag them into your Active Rotation.</li>
+                        <li><strong class="text-slate-200">Multi-Select:</strong> Click and drag your mouse over multiple rows, or use <kbd class="bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded text-xs border border-slate-600">Shift + Click</kbd> to select chunks of maps at once.</li>
+                        <li><strong class="text-slate-200">Reordering:</strong> Grab the <span class="text-slate-500 font-bold tracking-widest text-lg">⋮⋮</span> handle on any highlighted row to drag the entire block up or down.</li>
+                        <li><strong class="text-slate-200">Modifiers:</strong> Highlight your maps, check the Infantry or Hardcore boxes in the toolbar, and click "Apply to Selected".</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-bold text-emerald-400 mb-2">3. Applying Changes to the Server</h3>
+                    <ol class="list-decimal pl-5 space-y-3">
+                        <li>Click the green <strong class="text-emerald-400">Copy Config</strong> button at the top right of this tool.</li>
+                        <li>Open your <code class="bg-slate-700 px-1 rounded text-slate-200">ServerSettings.ini</code> file in the Bisect panel.</li>
+                        <li>Scroll down until you find the <code class="text-blue-300 bg-slate-900 px-1 rounded">[/Script/WDGame.WDServerMapRotationSettings]</code> header.</li>
+                        <li>Highlight everything from <code class="text-slate-400">RotationMode=...</code> all the way down through the existing <code class="text-slate-400">.RotationEntries=...</code> lines.</li>
+                        <li>Paste your copied config to overwrite the old maps, save the file, and restart your Wardogs server!</li>
+                    </ol>
+                </section>
+
+            </div>
+
+            <div class="p-4 border-t border-slate-700 flex justify-end shrink-0 bg-slate-800/50 rounded-b-xl">
+                <button onclick="closeHelpModal()" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-white shadow-lg transition">Got it, thanks!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MAP_DATA = {
+            "Kavkazi": { icon: "🏔️", baseExp: "Bakurani_KOTH_01", prefix: "Bakurani", zones: { "Default": "🎯 Default", "Farmland": "🌾 Farmland", "Lumberyard": "🪓 Lumberyard", "River": "🌊 River" } },
+            "Europe": { icon: "🏰", baseExp: "Madrid_KOTH_01", prefix: "Ozeti", zones: { "Default": "🎯 Default", "Church": "⛪ Church", "Farmland": "🌾 Farmland", "River": "🌊 River" } },
+            "NorthAmerica": { icon: "🏙️", baseExp: "Detroit_KOTH_01", prefix: "Zestafona", zones: { "Default": "🎯 Default", "Houses": "🏘️ Houses", "SmallFactory": "🏭 SmallFactory", "WaterTreatment": "💧 WaterTreatment" } }
+        };
+
+        const LIGHTING_OPTIONS = {
+            "DayEarlyClear": "🌤️ DayEarlyClear", "DayEarlyFog": "🌫️ DayEarlyFog", "DayClear": "☀️ DayClear",
+            "DayLateClear": "🌥️ DayLateClear", "DayLateGray": "☁️ DayLateGray", "DayLateGrayFog": "🌧️ DayLateGrayFog"
+        };
+
+        const MODS = {
+            "Standard": { ui: "🛡️ Standard", raw: "" },
+            "Infantry": { ui: "🪖 Infantry", raw: "+KOTH_InfantryOnly" },
+            "Hardcore": { ui: "💀 Hardcore", raw: "+KOTH_Hardcore" },
+            "Both": { ui: "☠️ HC + Inf", raw: "+KOTH_InfantryOnly+KOTH_Hardcore" }
+        };
+
+        let activeRotation = []; 
+        let selectedIndices = new Set();
+        let sortDirections = { regionRaw: 1, lightRaw: 1, zoneRaw: 1, modifierKey: 1 };
+        let draggedIndices = [];
+        let draggingFromTree = false;
+        
+        let isMouseSelecting = false;
+        let selectionStartIdx = null;
+        let currentSelection = new Set();
+
+        function renderTree() {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '';
+
+            for (const [regionKey, regionData] of Object.entries(MAP_DATA)) {
+                const regionDetails = document.createElement('details');
+                regionDetails.className = 'mb-1';
+                regionDetails.open = true; 
+                
+                regionDetails.innerHTML = `
+                    <summary draggable="true" ondragstart="startTreeDrag(event, 'region', '${regionKey}')" 
+                             class="cursor-pointer p-2 rounded hover:bg-slate-700/50 flex items-center gap-2 font-semibold text-slate-200 transition-colors group">
+                        <span class="opacity-30 group-hover:opacity-100 transition drag-handle text-xs">⋮⋮</span>
+                        <span class="text-xs transition-transform transform group-open:rotate-90">▶</span>
+                        ${regionData.icon} ${regionKey}
+                    </summary>
+                    <div class="tree-line"></div>
+                `;
+                
+                const regionLine = regionDetails.querySelector('.tree-line');
+
+                for (const [lightKey, lightUI] of Object.entries(LIGHTING_OPTIONS)) {
+                    const lightDetails = document.createElement('details');
+                    lightDetails.className = 'mb-1';
+                    
+                    lightDetails.innerHTML = `
+                        <summary draggable="true" ondragstart="startTreeDrag(event, 'light', '${regionKey}', '${lightKey}')"
+                                 class="cursor-pointer p-1.5 rounded hover:bg-slate-700/50 flex items-center gap-2 text-sm text-slate-300 transition-colors group">
+                            <span class="opacity-30 group-hover:opacity-100 transition drag-handle text-xs">⋮⋮</span>
+                            <span class="text-xs text-slate-500">▶</span>
+                            ${lightUI}
+                        </summary>
+                        <div class="tree-line space-y-1 mt-1"></div>
+                    `;
+                    
+                    const lightLine = lightDetails.querySelector('.tree-line');
+
+                    for (const [zoneKey, zoneUI] of Object.entries(regionData.zones)) {
+                        const zoneDiv = document.createElement('div');
+                        zoneDiv.className = 'p-1.5 ml-2 text-sm text-slate-400 hover:text-blue-300 hover:bg-slate-700/50 rounded flex items-center gap-2 transition-colors group';
+                        
+                        zoneDiv.innerHTML = `
+                            <span draggable="true" ondragstart="startTreeDrag(event, 'zone', '${regionKey}', '${lightKey}', '${zoneKey}')" 
+                                  class="opacity-30 group-hover:opacity-100 transition drag-handle px-1">⋮⋮</span>
+                            ${zoneUI}
+                        `;
+                        lightLine.appendChild(zoneDiv);
+                    }
+                    regionLine.appendChild(lightDetails);
+                }
+                container.appendChild(regionDetails);
+            }
+        }
+
+        function startTreeDrag(e, type, regionRaw, lightRaw = null, zoneKey = null) {
+            e.stopPropagation();
+            draggingFromTree = true;
+            const dragData = { type, regionRaw, lightRaw, zoneKey };
+            e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+            e.dataTransfer.effectAllowed = 'copy';
+        }
+
+        function renderActiveList() {
+            const listContainer = document.getElementById('activeList');
+            const emptyState = document.getElementById('emptyState');
+            
+            Array.from(listContainer.children).forEach(child => {
+                if (child.id !== 'emptyState') child.remove();
+            });
+
+            document.getElementById('countDisplay').innerText = activeRotation.length;
+            emptyState.style.display = activeRotation.length === 0 ? 'flex' : 'none';
+
+            activeRotation.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = `active-row grid grid-cols-12 gap-2 p-2.5 rounded-lg border border-transparent row-transition hover-row cursor-pointer select-none bg-slate-900/40 text-slate-300`;
+                row.dataset.index = index;
+
+                row.innerHTML = `
+                    <div class="col-span-3 flex items-center gap-2 truncate">
+                        <span draggable="true" class="drag-handle opacity-30 hover:opacity-100 hover:text-blue-400 px-1 text-lg leading-none transition-all">⋮⋮</span>
+                        <span class="font-medium">${item.regionUI}</span>
+                    </div>
+                    <div class="col-span-3 flex items-center truncate">${item.lightUI}</div>
+                    <div class="col-span-4 flex items-center truncate text-slate-400">${item.zoneUI}</div>
+                    <div class="col-span-2 flex items-center justify-end font-medium truncate ${item.modifierKey !== 'Standard' ? (item.modifierKey.includes('Hardcore') ? 'text-emerald-400' : 'text-blue-400') : ''}">
+                        ${MODS[item.modifierKey].ui}
+                    </div>
+                `;
+
+                const dragHandle = row.querySelector('.drag-handle');
+                dragHandle.ondragstart = (e) => handleInternalDragStart(e, index, row);
+                
+                row.ondragover = (e) => handleDragOver(e, row);
+                row.ondragleave = (e) => handleDragLeave(e, row);
+
+                row.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('drag-handle')) return; 
+                    
+                    isMouseSelecting = true;
+                    selectionStartIdx = index;
+                    
+                    if (e.shiftKey && selectedIndices.size > 0) {
+                        let min = Math.min(...selectedIndices, index);
+                        let max = Math.max(...selectedIndices, index);
+                        if (!e.ctrlKey) selectedIndices.clear();
+                        for (let i = min; i <= max; i++) selectedIndices.add(i);
+                    } else {
+                        if (!e.ctrlKey) selectedIndices.clear();
+                        selectedIndices.add(index);
+                    }
+                    updateSelectionVisuals();
+                });
+
+                row.addEventListener('mouseenter', (e) => {
+                    if (isMouseSelecting) {
+                        currentSelection.clear();
+                        let min = Math.min(selectionStartIdx, index);
+                        let max = Math.max(selectionStartIdx, index);
+                        for (let i = min; i <= max; i++) currentSelection.add(i);
+                        updateSelectionVisuals(true);
+                    }
+                });
+
+                listContainer.appendChild(row);
+            });
+            updateSelectionVisuals();
+        }
+
+        window.addEventListener('mouseup', () => {
+            if (isMouseSelecting) {
+                isMouseSelecting = false;
+                currentSelection.forEach(idx => selectedIndices.add(idx));
+                currentSelection.clear();
+                updateSelectionVisuals();
+            }
+            draggingFromTree = false;
+        });
+
+        function updateSelectionVisuals(isDragging = false) {
+            const rows = document.querySelectorAll('.active-row');
+            rows.forEach((row, idx) => {
+                const isSelected = selectedIndices.has(idx) || (isDragging && currentSelection.has(idx));
+                if (isSelected) {
+                    row.classList.add('selected-row');
+                    row.classList.remove('bg-slate-900/40', 'text-slate-300');
+                } else {
+                    row.classList.remove('selected-row');
+                    row.classList.add('bg-slate-900/40', 'text-slate-300');
+                }
+            });
+        }
+
+        function handleInternalDragStart(e, index, rowElement) {
+            if (!selectedIndices.has(index)) {
+                selectedIndices.clear();
+                selectedIndices.add(index);
+                updateSelectionVisuals();
+            }
+            draggedIndices = Array.from(selectedIndices).sort((a, b) => a - b);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', 'list-item');
+            
+            draggedIndices.forEach(idx => {
+                const r = document.querySelector(`.active-row[data-index="${idx}"]`);
+                if(r) setTimeout(() => r.classList.add('opacity-50'), 0);
+            });
+        }
+
+        function allowDrop(e) { e.preventDefault(); }
+
+        function handleDragOver(e, targetRow) {
+            e.preventDefault();
+            const rect = targetRow.getBoundingClientRect();
+            document.querySelectorAll('.active-row').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+            if (e.clientY < rect.top + (rect.height / 2)) targetRow.classList.add('drag-over-top');
+            else targetRow.classList.add('drag-over-bottom');
+        }
+
+        function handleDragLeave(e, targetRow) {
+            targetRow.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.querySelectorAll('.active-row').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'opacity-50'));
+
+            const listContainer = document.getElementById('activeList');
+            const rows = Array.from(listContainer.querySelectorAll('.active-row'));
+            let dropIndex = activeRotation.length;
+
+            for (let i = 0; i < rows.length; i++) {
+                const rect = rows[i].getBoundingClientRect();
+                if (e.clientY < rect.top + (rect.height / 2)) {
+                    dropIndex = i;
+                    break;
+                }
+            }
+
+            if (draggingFromTree) {
+                const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+                let newItems = [];
+                
+                const createObj = (reg, lght, zn) => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    regionRaw: reg, regionUI: `${MAP_DATA[reg].icon} ${reg}`, baseExp: MAP_DATA[reg].baseExp,
+                    lightRaw: lght, lightUI: LIGHTING_OPTIONS[lght],
+                    zoneRaw: `ZoneAlternator.${MAP_DATA[reg].prefix}.${zn}.Circle`, zoneUI: MAP_DATA[reg].zones[zn],
+                    modifierKey: "Standard"
+                });
+
+                if (dragData.type === 'region') {
+                    for (const l in LIGHTING_OPTIONS) 
+                        for (const z in MAP_DATA[dragData.regionRaw].zones) 
+                            newItems.push(createObj(dragData.regionRaw, l, z));
+                } else if (dragData.type === 'light') {
+                    for (const z in MAP_DATA[dragData.regionRaw].zones) 
+                        newItems.push(createObj(dragData.regionRaw, dragData.lightRaw, z));
+                } else if (dragData.type === 'zone') {
+                    newItems.push(createObj(dragData.regionRaw, dragData.lightRaw, dragData.zoneKey));
+                }
+
+                activeRotation.splice(dropIndex, 0, ...newItems);
+                selectedIndices.clear();
+                for(let i=0; i<newItems.length; i++) selectedIndices.add(dropIndex + i);
+
+            } else if (draggedIndices.length > 0) {
+                const draggedItems = draggedIndices.map(i => activeRotation[i]);
+                let adjustedDropIndex = dropIndex - draggedIndices.filter(i => i < dropIndex).length;
+
+                for (let i = draggedIndices.length - 1; i >= 0; i--) activeRotation.splice(draggedIndices[i], 1);
+                activeRotation.splice(adjustedDropIndex, 0, ...draggedItems);
+
+                selectedIndices.clear();
+                for (let i = 0; i < draggedItems.length; i++) selectedIndices.add(adjustedDropIndex + i);
+            }
+
+            draggingFromTree = false;
+            draggedIndices = [];
+            renderActiveList();
+        }
+
+        function handlePresetSelection(presetKey) {
+            if (presetKey.startsWith('custom_')) {
+                loadCustomPreset(presetKey);
+            } else {
+                loadBuiltInPreset(presetKey);
+            }
+        }
+
+        function loadBuiltInPreset(presetKey) {
+            activeRotation = [];
+            selectedIndices.clear();
+            if (presetKey === 'clear') { renderActiveList(); return; }
+
+            for (const [regionRaw, regionData] of Object.entries(MAP_DATA)) {
+                for (const [lightRaw, lightUI] of Object.entries(LIGHTING_OPTIONS)) {
+                    
+                    if (presetKey === 'daylight' && !lightRaw.includes('Clear')) continue;
+                    if (presetKey === 'nightFog' && lightRaw.includes('Clear')) continue;
+                    if (presetKey === 'pilots' && !lightRaw.includes('Clear')) continue; 
+                    
+                    for (const [zoneKey, zoneUI] of Object.entries(regionData.zones)) {
+                        
+                        if (presetKey === 'infantry' && (zoneKey === 'Farmland' || zoneKey === 'River')) continue;
+                        if (presetKey === 'pilots' && (zoneKey === 'Default' || zoneKey === 'Church' || zoneKey === 'Houses' || zoneKey === 'SmallFactory' || zoneKey === 'WaterTreatment')) continue;
+                        
+                        let modifier = "Standard";
+                        if (presetKey === 'nightFog') modifier = "Hardcore";
+                        if (presetKey === 'infantry') modifier = "Infantry";
+
+                        activeRotation.push({
+                            id: Math.random().toString(36).substr(2, 9),
+                            regionRaw: regionRaw, regionUI: `${regionData.icon} ${regionRaw}`, baseExp: regionData.baseExp,
+                            lightRaw: lightRaw, lightUI: lightUI,
+                            zoneRaw: `ZoneAlternator.${regionData.prefix}.${zoneKey}.Circle`, zoneUI: zoneUI,
+                            modifierKey: modifier
+                        });
+                    }
+                }
+            }
+            renderActiveList();
+        }
+
+        function loadCustomPresetsToUI() {
+            const group = document.getElementById('customPresetGroup');
+            group.innerHTML = '';
+            
+            const saved = JSON.parse(localStorage.getItem('snf_custom_presets') || '{}');
+            for (const [key, data] of Object.entries(saved)) {
+                const opt = document.createElement('option');
+                opt.value = 'custom_' + key;
+                opt.innerText = `💾 ${data.name}`;
+                if (data.description) opt.title = data.description;
+                group.appendChild(opt);
+            }
+        }
+
+        function loadCustomPreset(fullKey) {
+            const id = fullKey.replace('custom_', '');
+            const saved = JSON.parse(localStorage.getItem('snf_custom_presets') || '{}');
+            if (saved[id] && saved[id].rotation) {
+                activeRotation = JSON.parse(JSON.stringify(saved[id].rotation));
+                selectedIndices.clear();
+                renderActiveList();
+            }
+        }
+
+        function openSaveModal() {
+            if (activeRotation.length === 0) {
+                alert("Your active rotation list is empty! Add some maps before saving a preset.");
+                return;
+            }
+            document.getElementById('txtPresetName').value = '';
+            document.getElementById('txtPresetDesc').value = '';
+            
+            const modal = document.getElementById('presetModal');
+            const content = document.getElementById('presetModalContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeSaveModal() {
+            const modal = document.getElementById('presetModal');
+            const content = document.getElementById('presetModalContent');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        function saveCustomPreset() {
+            const name = document.getElementById('txtPresetName').value.trim();
+            const desc = document.getElementById('txtPresetDesc').value.trim();
+            
+            if (!name) {
+                alert("Please enter a name for your preset.");
+                return;
+            }
+            
+            const key = "preset_" + Date.now();
+            const saved = JSON.parse(localStorage.getItem('snf_custom_presets') || '{}');
+            
+            saved[key] = {
+                name: name,
+                description: desc,
+                rotation: activeRotation
+            };
+            
+            localStorage.setItem('snf_custom_presets', JSON.stringify(saved));
+            loadCustomPresetsToUI();
+            document.getElementById('cmbPreset').value = 'custom_' + key;
+            closeSaveModal();
+        }
+
+        function openHelpModal() {
+            const modal = document.getElementById('helpModal');
+            const content = document.getElementById('helpModalContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeHelpModal() {
+            const modal = document.getElementById('helpModal');
+            const content = document.getElementById('helpModalContent');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }, 200); 
+        }
+
+        function sortList(columnKey) {
+            const dir = sortDirections[columnKey];
+            activeRotation.sort((a, b) => {
+                let valA = a[columnKey].toString().toLowerCase();
+                let valB = b[columnKey].toString().toLowerCase();
+                if (valA < valB) return -1 * dir;
+                if (valA > valB) return 1 * dir;
+                return 0;
+            });
+            sortDirections[columnKey] *= -1; 
+            selectedIndices.clear();
+            renderActiveList();
+        }
+
+        function applyModifiers() {
+            if (selectedIndices.size === 0) return;
+            const isInf = document.getElementById('chkInfantry').checked;
+            const isHC = document.getElementById('chkHardcore').checked;
+            let newModKey = (isInf && isHC) ? "Both" : (isInf ? "Infantry" : (isHC ? "Hardcore" : "Standard"));
+            
+            selectedIndices.forEach(idx => activeRotation[idx].modifierKey = newModKey);
+            renderActiveList();
+        }
+
+        function deleteSelected() {
+            if (selectedIndices.size === 0) return;
+            activeRotation = activeRotation.filter((_, idx) => !selectedIndices.has(idx));
+            selectedIndices.clear();
+            renderActiveList();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') deleteSelected();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    selectedIndices.clear();
+                    activeRotation.forEach((_, idx) => selectedIndices.add(idx));
+                    updateSelectionVisuals();
+                }
+            }
+        });
+
+        function exportToClipboard() {
+            if (activeRotation.length === 0) return;
+            const mode = document.getElementById('cmbMode').value;
+            let outputLines = [ `RotationMode=${mode}`, `!RotationEntries=ClearArray` ];
+
+            activeRotation.forEach(item => {
+                const finalExp = item.baseExp + MODS[item.modifierKey].raw;
+                outputLines.push(`.RotationEntries=(Map="${item.regionRaw}",Experience="${finalExp}",Lighting="${item.lightRaw}",ZoneAlternator="${item.zoneRaw}")`);
+            });
+
+            navigator.clipboard.writeText(outputLines.join("\n")).then(() => {
+                const toast = document.getElementById('exportToast');
+                toast.classList.remove('opacity-0');
+                toast.classList.add('opacity-100');
+                setTimeout(() => { toast.classList.remove('opacity-100'); toast.classList.add('opacity-0'); }, 3000);
+            });
+        }
+
+        window.onload = () => {
+            renderTree();
+            loadCustomPresetsToUI();
+            
+            const defaultSelection = "core72";
+            document.getElementById('cmbPreset').value = defaultSelection;
+            loadBuiltInPreset(defaultSelection);
+        };
+    </script>
+</body>
+</html>
