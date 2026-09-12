@@ -9,7 +9,7 @@ A practical User Interface to generate anything to do with map rotation with eas
 - Make and use presets
 - Comfy to use (drag & drop etc.)
 
-and then just copy & paste into your serverconfig.ini
+when done just copy & paste into your ServerSettings.ini
 
 Its a simple .html and runs completely offline. 
 
