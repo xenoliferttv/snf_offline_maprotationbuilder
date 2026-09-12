@@ -6,7 +6,7 @@ A practical User Interface to generate anything to do with map rotation with eas
 - Change to infantry / hardcore mode with a couple clicks
 - Change ordered / random mode
 - Sorting by maps, weather, daytime
-- Make or use presets
+- Make and use presets
 - Comfy to use (drag & drop etc.)
 
 and then just copy & paste into your serverconfig.ini
